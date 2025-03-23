@@ -1,0 +1,28 @@
+# General files
+*.log
+*.tmp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# Spring Boot
+/target/
+/build/
+*.jar
+*.war
+*.ear
+
+# Angular and Node.js
+node_modules/
+dist/
+**/.env
+**/npm-debug.log
+
+# Ignore coverage and build output
+/coverage/

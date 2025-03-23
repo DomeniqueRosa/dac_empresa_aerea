@@ -1,0 +1,173 @@
+services:
+  # Bancos de Dados
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Admin_123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/sql/:/docker-entrypoint-initdb.d/:rw
+    ports:
+      - "10000:5432"
+    networks:
+      - dac-network
+
+  mongodb:
+    image: mongo:5
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_DATABASE: my_mongodb
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: Admin_123
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "10002:27017"
+    networks:
+      - dac-network
+
+  # Ferramentas de Administração dos Bancos
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: Admin_123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - dac-network
+
+  mongo-express:
+    image: mongo-express
+    container_name: mongo-express
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://admin:Admin_123@mongodb:27017/my_mongodb?authSource=admin"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: Admin_123
+    ports:
+      - "5051:8081"
+    depends_on:
+      - mongodb
+    networks:
+      - dac-network
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    networks:
+      - dac-network
+
+  # MS SAGA
+  saga:
+    build: ./SAGA
+    ports:
+      - "15000:15000"
+    container_name: saga-service
+    depends_on:
+      - postgres
+      - mongodb
+      - rabbitmq
+    networks:
+      - dac-network
+
+  # Outros Microserviços
+  auth:
+    build: ./Auth
+    ports:
+      - "15001:15001"
+    container_name: auth-service
+    depends_on:
+      - postgres
+      - mongodb
+      - rabbitmq
+    networks:
+      - dac-network
+
+  client:
+    build: ./Cliente
+    ports:
+      - "15002:15002"
+    container_name: client-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - dac-network
+
+  employee:
+    build: ./Funcionario
+    ports:
+      - "15003:15003"
+    container_name: employee-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - dac-network
+
+  flight:
+    build: ./Voos
+    ports:
+      - "15004:15004"
+    container_name: flight-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - dac-network
+
+  reservation:
+    build: ./Reserva
+    ports:
+      - "15005:15005"
+    container_name: reservation-service
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - dac-network
+
+  # API Gateway
+  api-gateway:
+    build: ./API-Gateway
+    ports:
+      - "3000:3000"
+    container_name: api-gateway
+    environment:
+      JWT_SECRET: super_secret_key
+      AUTH_SERVICE_URL: http://auth:15001
+      CLIENT_SERVICE_URL: http://client:15002
+      EMPLOYEE_SERVICE_URL: http://employee:15003
+      FLIGHT_SERVICE_URL: http://flight:15004
+      RESERVATION_SERVICE_URL: http://reservation:15005
+      SAGA_SERVICE_URL: http://saga:15000
+      RABBITMQ_URL: amqp://rabbitmq
+    depends_on:
+      - auth
+      - client
+      - employee
+      - flight
+      - reservation
+      - saga
+    networks:
+      - dac-network
+
+volumes:
+  postgres-data:
+  mongo-data:
+
+networks:
+  dac-network:
+    name: dac-network
